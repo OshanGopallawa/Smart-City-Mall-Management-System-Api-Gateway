@@ -1,16 +1,16 @@
-# ── Stage 1: Build ────────────────────────────────────────────────
-FROM node:20-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-RUN npm run build
+FROM nginx:alpine
 
-# ── Stage 2: Serve with Nginx ──────────────────────────────────────
-FROM nginx:alpine AS production
-COPY --from=builder /app/build /usr/share/nginx/html
-COPY nginx.frontend.conf /etc/nginx/conf.d/default.conf
-EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-  CMD wget -qO- http://localhost:3000 || exit 1
+# Remove default nginx config
+RUN rm /etc/nginx/nginx.conf
+
+# Copy our gateway config
+COPY nginx-gateway.conf /etc/nginx/nginx.conf
+
+# Copy entrypoint script that replaces placeholders with real URLs at startup
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+EXPOSE 80
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["nginx", "-g", "daemon off;"]
